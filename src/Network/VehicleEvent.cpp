@@ -75,6 +75,23 @@ void TCPSend(const std::string& Data, uint64_t Sock) {
     } while (Sent < Size);
 }
 
+int RecvWaitAll(int sockfd, char *buf, int len) {
+    // handle MSG_WAITALL not actually filling the whole buffer
+    // happens frequently in wine, and can also happen natively when the OS pauses the execution for various reasons
+    int offset = 0;
+    while (offset < len) {
+        int recv_status = recv(sockfd, &buf[offset], len - offset, MSG_WAITALL);
+        if (recv_status == 0) {
+            return 0;
+        }
+        if (recv_status == -1) {
+            return -1;
+        }
+        offset += recv_status;
+    }
+    return offset;
+}
+
 std::string TCPRcv(SOCKET Sock) {
     if (Sock == -1) {
         Terminate = true;
@@ -84,7 +101,7 @@ std::string TCPRcv(SOCKET Sock) {
     int32_t Header;
     int Temp;
     std::vector<char> Data(sizeof(Header));
-    Temp = recv(Sock, Data.data(), sizeof(Header), MSG_WAITALL);
+    Temp = RecvWaitAll(Sock, Data.data(), sizeof(Header));
     if (!CheckBytes(Temp)) {
         UUl("Socket Closed Code 3");
         return "";
@@ -97,7 +114,7 @@ std::string TCPRcv(SOCKET Sock) {
     }
 
     Data.resize(Header, 0);
-    Temp = recv(Sock, Data.data(), Header, MSG_WAITALL);
+    Temp = RecvWaitAll(Sock, Data.data(), Header);
     if (!CheckBytes(Temp)) {
         UUl("Socket Closed Code 5");
         return "";

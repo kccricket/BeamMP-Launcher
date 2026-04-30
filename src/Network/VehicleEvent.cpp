@@ -82,7 +82,8 @@ int RecvWaitAll(int sockfd, char *buf, int len) {
     while (offset < len) {
         int recv_status = recv(sockfd, &buf[offset], len - offset, MSG_WAITALL);
         if (recv_status == 0) {
-            return 0;
+            // do not discard received data when the other side closes the socket cleanly
+            return offset;
         }
         if (recv_status == -1) {
             return -1;

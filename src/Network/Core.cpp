@@ -143,7 +143,7 @@ void GetServerInfo(std::string Data) {
     const std::string buffer = ([&]() -> std::string {
         int32_t Header;
         std::vector<char> data(sizeof(Header));
-        int Temp = recv(ISock, data.data(), sizeof(Header), MSG_WAITALL);
+        int Temp = RecvWaitAll(ISock, data.data(), sizeof(Header));
 
         auto checkBytes = ([&](const int32_t bytes) -> bool {
             if (bytes == 0) {
@@ -164,7 +164,7 @@ void GetServerInfo(std::string Data) {
         }
 
         data.resize(Header, 0);
-        Temp = recv(ISock, data.data(), Header, MSG_WAITALL);
+        Temp = RecvWaitAll(ISock, data.data(), Header);
         if (!checkBytes(Temp)) {
             return "";
         }

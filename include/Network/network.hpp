@@ -56,3 +56,4 @@ void UDPClientMain(const std::string& IP, int Port);
 void TCPGameServer(const std::string& IP, int Port);
 bool SecurityWarning();
 void CoreSend(std::string data);
+int RecvWaitAll(int sockfd, char *buf, int len);

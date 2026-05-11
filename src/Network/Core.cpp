@@ -145,27 +145,26 @@ void GetServerInfo(std::string Data) {
         std::vector<char> data(sizeof(Header));
         int Temp = RecvWaitAll(ISock, data.data(), sizeof(Header));
 
-        auto checkBytes = ([&](const int32_t bytes) -> bool {
+        auto checkBytes = ([&](const int32_t bytes, const int32_t expected = -1) -> bool {
             if (bytes == 0) {
                 return false;
             } else if (bytes < 0) {
                 return false;
             }
+            if (expected != -1 && bytes != expected) {
+                return false;
+            }
             return true;
         });
 
-        if (!checkBytes(Temp)) {
+        if (!checkBytes(Temp, sizeof(Header))) {
             return "";
         }
         memcpy(&Header, data.data(), sizeof(Header));
 
-        if (!checkBytes(Temp)) {
-            return "";
-        }
-
         data.resize(Header, 0);
         Temp = RecvWaitAll(ISock, data.data(), Header);
-        if (!checkBytes(Temp)) {
+        if (!checkBytes(Temp, Header)) {
             return "";
         }
         return std::string(data.data(), Header);

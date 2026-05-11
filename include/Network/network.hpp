@@ -42,7 +42,7 @@ extern std::string magic;
 int KillSocket(uint64_t Dead);
 void UUl(const std::string& R);
 void UDPSend(std::string Data);
-bool CheckBytes(int32_t Bytes);
+bool CheckBytes(int32_t Bytes, int32_t Expected = -1);
 void GameSend(std::string_view Data);
 void SendLarge(std::string Data);
 std::string TCPRcv(uint64_t Sock);

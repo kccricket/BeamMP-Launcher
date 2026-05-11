@@ -28,14 +28,19 @@ int LastPort;
 std::string LastIP;
 SOCKET TCPSock = -1;
 
-bool CheckBytes(int32_t Bytes) {
+bool CheckBytes(int32_t Bytes, int32_t Expected) {
     if (Bytes == 0) {
-        debug("(TCP) Connection closing... CheckBytes(16)");
+        debug("(TCP) Connection closing...");
         Terminate = true;
         return false;
     } else if (Bytes < 0) {
         debug("(TCP CB) recv failed with error: " + std::to_string(WSAGetLastError()));
         KillSocket(TCPSock);
+        Terminate = true;
+        return false;
+    }
+    if (Expected != -1 && Bytes != Expected) {
+        debug(std::format("(TCP) Short recv detected, expected {} bytes, got {} bytes", Expected, Bytes));
         Terminate = true;
         return false;
     }
@@ -103,7 +108,7 @@ std::string TCPRcv(SOCKET Sock) {
     int Temp;
     std::vector<char> Data(sizeof(Header));
     Temp = RecvWaitAll(Sock, Data.data(), sizeof(Header));
-    if (!CheckBytes(Temp)) {
+    if (!CheckBytes(Temp, sizeof(Header))) {
         UUl("Socket Closed Code 3");
         return "";
     }
@@ -116,7 +121,7 @@ std::string TCPRcv(SOCKET Sock) {
 
     Data.resize(Header, 0);
     Temp = RecvWaitAll(Sock, Data.data(), Header);
-    if (!CheckBytes(Temp)) {
+    if (!CheckBytes(Temp, Header)) {
         UUl("Socket Closed Code 5");
         return "";
     }

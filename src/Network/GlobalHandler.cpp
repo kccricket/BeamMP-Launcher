@@ -50,17 +50,6 @@ int KillSocket(uint64_t Dead) {
     return a;
 }
 
-bool CheckBytes(uint32_t Bytes) {
-    if (Bytes == 0) {
-        debug("(Proxy) Connection closing");
-        return false;
-    } else if (Bytes < 0) {
-        debug("(Proxy) send failed with error: " + std::to_string(WSAGetLastError()));
-        return false;
-    }
-    return true;
-}
-
 void GameSend(std::string_view Data) {
     static std::mutex Lock;
     std::scoped_lock Guard(Lock);

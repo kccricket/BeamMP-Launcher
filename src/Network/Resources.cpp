@@ -164,7 +164,7 @@ std::vector<char> TCPRcvRaw(SOCKET Sock, uint64_t& GRcv, uint64_t Size) {
     do {
         // receive at most some MB at a time
         int Len = std::min(int(Size - Rcv), 1 * 1024 * 1024);
-        int Temp = recv(Sock, &File[Rcv], Len, MSG_WAITALL);
+        int Temp = RecvWaitAll(Sock, &File[Rcv], Len);
         if (Temp == -1 || Temp == 0) {
             debug("Recv returned: " + std::to_string(Temp));
             if (Temp == -1) {

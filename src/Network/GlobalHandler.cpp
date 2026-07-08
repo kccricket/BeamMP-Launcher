@@ -54,6 +54,8 @@ int KillSocket(uint64_t Dead) {
 void GameSend(std::string_view Data) {
     static std::mutex Lock;
     std::scoped_lock Guard(Lock);
+    if (!GConnected || CSocket == (SOCKET)-1)
+        return; // game hasn't connected to the local proxy yet (or has disconnected)
     auto ToSend = Utils::PrependHeader<std::string_view>(Data);
     auto Result = send(CSocket, ToSend.data(), ToSend.size(), 0);
     if (Result < 0) {

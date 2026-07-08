@@ -64,7 +64,7 @@ void InitOptions(int argc, const char *argv[], Options &options) {
                 std::string error_message =
                     "Port invalid, must be a non-zero positive "
                     "integer, resorting to default (";
-                error_message += options.port;
+                error_message += std::to_string(options.port);
                 error_message += ")";
                 error(error_message);
                 i++;

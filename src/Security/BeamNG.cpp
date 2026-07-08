@@ -11,6 +11,8 @@
 #include <shlobj_core.h>
 #elif defined(__linux__)
 #include "vdf_parser.hpp"
+#include <algorithm>
+#include <cctype>
 #include <pwd.h>
 #include <unistd.h>
 #include <vector>
@@ -162,6 +164,73 @@ void FileList(std::vector<std::string>& a, const std::string& Path) {
         }
     }
 }
+#if defined(__linux__)
+// Steam's libraryfolders.vdf can record a path with different casing than what's
+// actually on disk (e.g. /mnt/hdd vs /mnt/HDD), which fails silently on case-sensitive
+// filesystems. Resolve each path segment case-insensitively as a fallback.
+static bool ResolvePathComponent(const fs::path& parentDir, const std::string& want, fs::path& resolved) {
+    std::error_code ec;
+    fs::path exact = parentDir / want;
+    if (fs::exists(exact, ec)) {
+        resolved = exact;
+        return true;
+    }
+
+    if (!fs::is_directory(parentDir, ec)) {
+        return false;
+    }
+
+    std::string wantLower = want;
+    std::transform(wantLower.begin(), wantLower.end(), wantLower.begin(), [](unsigned char c) { return std::tolower(c); });
+
+    for (const auto& entry : fs::directory_iterator(parentDir, ec)) {
+        std::string nameLower = entry.path().filename().string();
+        std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (nameLower == wantLower) {
+            resolved = entry.path();
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool TryResolveGameDir(const std::string& libraryPath, std::string& outGameDir) {
+    if (libraryPath.empty()) {
+        return false;
+    }
+
+    fs::path current;
+    bool first = true;
+    for (const auto& part : fs::path(libraryPath)) {
+        if (first) {
+            current = part;
+            first = false;
+            continue;
+        }
+        fs::path resolved;
+        if (!ResolvePathComponent(current, part.string(), resolved)) {
+            return false;
+        }
+        current = resolved;
+    }
+
+    for (const std::string& want : { std::string("steamapps"), std::string("common"), std::string("BeamNG.drive") }) {
+        fs::path resolved;
+        if (!ResolvePathComponent(current, want, resolved)) {
+            return false;
+        }
+        current = resolved;
+    }
+
+    std::error_code ec;
+    if (fs::is_regular_file(current / "integrity.json", ec)) {
+        outGameDir = current.string() + "/";
+        return true;
+    }
+    return false;
+}
+#endif
+
 void LegitimacyCheck() {
     if (options.game_path != nullptr) {
         std::filesystem::path gamePath(options.game_path);
@@ -247,7 +316,10 @@ void LegitimacyCheck() {
     std::vector<std::filesystem::path> steamappsCommonPaths = {
         ".steam/root/steamapps", // default
         ".steam/steam/steamapps", // Legacy Steam installations
+        ".local/share/Steam/steamapps", // Non-symlinked manual/native installs (e.g. Arch, Fedora)
+        ".steam/debian-installation/steamapps", // Debian's official steam package
         ".var/app/com.valvesoftware.Steam/.steam/root/steamapps", // flatpak
+        ".var/app/com.valvesoftware.Steam/data/Steam/steamapps", // flatpak, XDG_DATA_HOME layout
         "snap/steam/common/.local/share/Steam/steamapps" // snap
     };
 
@@ -280,9 +352,28 @@ void LegitimacyCheck() {
 
     std::ifstream libraryFolders(libraryFoldersPath);
     auto root = tyti::vdf::read(libraryFolders);
-    for (auto folderInfo : root.childs) {
-        if ((folderInfo.second->childs["apps"]->attribs).contains("284160") && std::filesystem::exists(folderInfo.second->attribs["path"] + "/steamapps/common/BeamNG.drive/integrity.json")){
-            GameDir = folderInfo.second->attribs["path"] + "/steamapps/common/BeamNG.drive/";
+    for (const auto& folderInfo : root.childs) {
+        if (!folderInfo.second) {
+            continue;
+        }
+        auto pathAttrib = folderInfo.second->attribs.find("path");
+        if (pathAttrib == folderInfo.second->attribs.end()) {
+            continue;
+        }
+        const std::string& libraryPath = pathAttrib->second;
+
+        auto appsChild = folderInfo.second->childs.find("apps");
+        if (appsChild == folderInfo.second->childs.end() || !appsChild->second) {
+            continue;
+        }
+        if (!appsChild->second->attribs.contains("284160")) {
+            continue;
+        }
+
+        debug("Checking Steam library for BeamNG.drive: " + libraryPath);
+        std::string resolvedGameDir;
+        if (TryResolveGameDir(libraryPath, resolvedGameDir)) {
+            GameDir = resolvedGameDir;
             break;
         }
     }

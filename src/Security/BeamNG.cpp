@@ -16,6 +16,7 @@
 #include <vector>
 #endif
 #include "Logger.h"
+#include "Options.h"
 #include <fstream>
 #include <string>
 #include <thread>
@@ -161,6 +162,17 @@ void FileList(std::vector<std::string>& a, const std::string& Path) {
     }
 }
 void LegitimacyCheck() {
+    if (options.game_path != nullptr) {
+        std::filesystem::path gamePath(options.game_path);
+        if (std::filesystem::exists(gamePath / beammp_wide("integrity.json"))) {
+            // GetGameDir() strips the trailing path component off GameDir, so
+            // append a separator here (an empty trailing path element does this).
+            GameDir = (gamePath / beammp_wide("")).native();
+            debug(beammp_wide("Using custom game install path: ") + GameDir);
+            return;
+        }
+        warn(beammp_wide("Invalid or non-existent path (") + Utils::ToWString(options.game_path) + beammp_wide(") specified using --game-path, skipping"));
+    }
 #if defined(_WIN32)
     wchar_t* appDataPath = new wchar_t[MAX_PATH];
     HRESULT result = SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, appDataPath);

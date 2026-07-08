@@ -6,6 +6,7 @@
 
 
 #pragma once
+#include <atomic>
 #include <filesystem>
 #include <string>
 
@@ -19,20 +20,20 @@
 
 void NetReset();
 extern bool Dev;
-extern int ping;
+extern std::atomic<int> ping;
 
 [[noreturn]] void CoreNetwork();
 extern int ProxyPort;
 extern int ClientID;
 extern int LastPort;
-extern bool ModLoaded;
-extern bool Terminate;
+extern std::atomic<bool> ModLoaded;
+extern std::atomic<bool> Terminate;
 extern uint64_t UDPSock;
 extern uint64_t TCPSock;
 extern std::string Branch;
 extern std::filesystem::path CachingDirectory;
 extern bool deleteDuplicateMods;
-extern bool TCPTerminate;
+extern std::atomic<bool> TCPTerminate;
 extern std::string LastIP;
 extern std::string MStatus;
 extern std::string UlStatus;

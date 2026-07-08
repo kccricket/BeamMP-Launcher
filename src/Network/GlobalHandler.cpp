@@ -28,11 +28,12 @@
 #include <string>
 #include <thread>
 #include "Options.h"
+#include <atomic>
 #include <chrono>
 
 std::chrono::time_point<std::chrono::high_resolution_clock> PingStart, PingEnd;
-bool GConnected = false;
-bool CServer = true;
+std::atomic<bool> GConnected = false;
+std::atomic<bool> CServer = true;
 SOCKET CSocket = -1;
 SOCKET GSocket = -1;
 std::string magic;
@@ -98,6 +99,7 @@ void NetReset() {
     TCPTerminate = false;
     GConnected = false;
     Terminate = false;
+    CServer = true;
     UlStatus = "Ulstart";
     MStatus = " ";
     if (UDPSock != (SOCKET)(-1)) {
@@ -149,6 +151,14 @@ SOCKET SetupListener() {
         WSACleanup();
         return -1;
     }
+#ifdef __linux__
+    // The previous session's listener socket can linger in TIME_WAIT after being closed,
+    // which would otherwise make the bind() below fail with EADDRINUSE on a quick reconnect.
+    const int reuseAddr = 1;
+    if (setsockopt(GSocket, SOL_SOCKET, SO_REUSEADDR, &reuseAddr, sizeof(reuseAddr)) < 0) {
+        warn("(Proxy) setsockopt(SO_REUSEADDR) failed: " + std::to_string(WSAGetLastError()));
+    }
+#endif
     iRes = bind(GSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iRes == SOCKET_ERROR) {
         error("(Proxy) bind failed with error: " + std::to_string(WSAGetLastError()));

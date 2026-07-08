@@ -27,6 +27,7 @@
 
 #include "Logger.h"
 #include "Startup.h"
+#include <atomic>
 #include <charconv>
 #include <nlohmann/json.hpp>
 #include <set>
@@ -38,18 +39,18 @@
 
 extern int TraceBack;
 std::set<std::string>* ConfList = nullptr;
-bool TCPTerminate = false;
-bool Terminate = false;
+std::atomic<bool> TCPTerminate = false;
+std::atomic<bool> Terminate = false;
 bool LoginAuth = false;
 std::string Username = "";
 std::string UserRole = "";
 int UserID = -1;
 std::string UlStatus;
 std::string MStatus;
-bool ModLoaded;
-int ping = -1;
+std::atomic<bool> ModLoaded = false;
+std::atomic<int> ping = -1;
 SOCKET CoreSocket = -1;
-signed char confirmed = -1;
+std::atomic<signed char> confirmed = -1;
 
 bool SecurityWarning() {
     confirmed = -1;

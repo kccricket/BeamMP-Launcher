@@ -344,6 +344,13 @@ void CheckForUpdates(const std::string& CV) {
         return;
     }
 
+    static const std::regex version_pattern(R"(^\d+\.\d+\.\d+$)");
+    if (!std::regex_match(LatestVersion, version_pattern)) {
+        error("Invalid version from backend, skipping update check.");
+        debug("Launcher version in question: " + LatestVersion);
+        return;
+    }
+
     transform(LatestHash.begin(), LatestHash.end(), LatestHash.begin(), ::tolower);
     beammp_fs_string BP(GetBP() / GetEN()), Back(GetBP() / beammp_wide("BeamMP-Launcher.back"));
 

@@ -41,6 +41,12 @@
 
 namespace fs = std::filesystem;
 
+// Sane ceiling on a single mod/map/resource file's declared size, well above
+// real-world content (largest known maps are ~1.7 GB) but bounded so a
+// malicious/compromised server can't force an unbounded allocation attempt
+// via the file_size field.
+constexpr uint64_t MaxResourceFileSize = 8ULL * 1024 * 1024 * 1024;
+
 void CheckForDir() {
     if (!fs::exists(CachingDirectory)) {
         try {
@@ -443,6 +449,11 @@ void NewSyncResources(SOCKET Sock, const std::string& Mods, const std::vector<Mo
             Terminate = true;
             return;
         }
+        if (ModInfoIter->FileSize > MaxResourceFileSize) {
+            error("Declared file size for '" + ModInfoIter->FileName + "' (" + std::to_string(ModInfoIter->FileSize) + " bytes) exceeds the maximum allowed resource size");
+            Terminate = true;
+            return;
+        }
         auto FileName = std::filesystem::path(ModInfoIter->FileName).stem().string() + "-" + ModInfoIter->Hash.substr(0, 8) + std::filesystem::path(ModInfoIter->FileName).extension().string();
         auto PathToSaveTo = (CachingDirectory / FileName);
         if (fs::exists(PathToSaveTo) && Utils::GetSha256HashReallyFastFile(PathToSaveTo) == ModInfoIter->Hash) {
@@ -665,6 +676,10 @@ void SyncResources(SOCKET Sock) {
             return;
         }
         auto FileSize = std::stoull(*FS);
+        if (FileSize > MaxResourceFileSize) {
+            InvalidResource(*FN);
+            return;
+        }
         if (fs::exists(PathToSaveTo)) {
             if (fs::file_size(PathToSaveTo) == FileSize) {
                 UpdateUl(false, std::to_string(Pos) + "/" + std::to_string(Amount) + ": " + PathToSaveTo.filename().string());

@@ -123,6 +123,7 @@ void CheckLocalKey() {
                 error(Buffer);
                 info("Invalid answer from authentication servers.");
                 UpdateKey(nullptr);
+                return;
             }
             if (d["success"].get<bool>()) {
                 LoginAuth = true;

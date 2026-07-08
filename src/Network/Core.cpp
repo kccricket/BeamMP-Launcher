@@ -198,9 +198,14 @@ void CoreSend(std::string data) {
 }
 
 bool IsAllowedLink(const std::string& Link) {
-    std::regex link_pattern(R"(https:\/\/(?:\w+)?(?:\.)?(?:beammp\.com|beammp\.gg|github\.com\/BeamMP\/|discord\.gg|patreon\.com\/BeamMP))");
-    std::smatch link_match;
-    return std::regex_search(Link, link_match, link_pattern) && link_match.position() == 0;
+    // Anchored at both ends (regex_match, not regex_search) so a matched host
+    // can never be glued to an attacker-controlled suffix like
+    // "beammp.com.attacker.net" or "evilbeammp.com" -- the host must be
+    // exactly one of the allowed domains, and any subdomain must be
+    // dot-separated. github.com/BeamMP and patreon.com/BeamMP are
+    // additionally restricted to that path prefix.
+    static const std::regex link_pattern(R"(^https:\/\/(?:(?:[a-zA-Z0-9-]+\.)*(?:beammp\.com|beammp\.gg)|discord\.gg|github\.com\/BeamMP|patreon\.com\/BeamMP)(?:\/.*)?$)");
+    return std::regex_match(Link, link_pattern);
 }
 
 std::vector<std::future<void>> futures;
@@ -341,9 +346,9 @@ void Parse(std::string Data, SOCKET CSocket) {
         Data.clear();
         break;
     case 'I': {
-        auto future = std::async(std::launch::async, [data = std::move(Data)]() {
+        futures.push_back(std::async(std::launch::async, [data = std::move(Data)]() {
             GetServerInfo(data);
-        });
+        }));
         break;
     }
     default:

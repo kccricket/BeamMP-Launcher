@@ -660,10 +660,12 @@ void SyncResources(SOCKET Sock) {
             continue;
         }
         Pos++;
+        if (FS->empty() || FS->find_first_not_of("0123456789") != std::string::npos) {
+            InvalidResource(*FN);
+            return;
+        }
         auto FileSize = std::stoull(*FS);
         if (fs::exists(PathToSaveTo)) {
-            if (FS->find_first_not_of("0123456789") != std::string::npos)
-                continue;
             if (fs::file_size(PathToSaveTo) == FileSize) {
                 UpdateUl(false, std::to_string(Pos) + "/" + std::to_string(Amount) + ": " + PathToSaveTo.filename().string());
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));

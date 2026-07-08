@@ -119,6 +119,14 @@ std::string TCPRcv(SOCKET Sock) {
         return "";
     }
 
+    constexpr int32_t MaxPacketSize = 64 * 1024 * 1024; // 64 MiB
+    if (Header < 0 || Header > MaxPacketSize) {
+        debug("(TCP) Invalid packet size in header: " + std::to_string(Header));
+        UUl("Socket Closed Code 6");
+        Terminate = true;
+        return "";
+    }
+
     Data.resize(Header, 0);
     Temp = RecvWaitAll(Sock, Data.data(), Header);
     if (!CheckBytes(Temp, Header)) {
@@ -182,9 +190,14 @@ void TCPClientMain(const std::string& IP, int Port) {
 
     char Code = 'C';
     send(TCPSock, &Code, 1, 0);
-    SyncResources(TCPSock);
-    while (!Terminate) {
-        ServerParser(TCPRcv(TCPSock));
+    try {
+        SyncResources(TCPSock);
+        while (!Terminate) {
+            ServerParser(TCPRcv(TCPSock));
+        }
+    } catch (const std::exception& e) {
+        error(std::string("Error while receiving from server: ") + e.what());
+        Terminate = true;
     }
     GameSend("T");
     ////Game Send Terminate

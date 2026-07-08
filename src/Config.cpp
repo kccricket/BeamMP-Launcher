@@ -19,7 +19,7 @@ std::filesystem::path CachingDirectory = std::filesystem::path("./Resources");
 bool deleteDuplicateMods = false;
 
 void ParseConfig(const nlohmann::json& d) {
-    if (d["Port"].is_number()) {
+    if (d.contains("Port") && d["Port"].is_number()) {
         options.port = d["Port"].get<int>();
     }
     // Default -1
@@ -27,7 +27,7 @@ void ParseConfig(const nlohmann::json& d) {
     // EA 2
     // Dev 3
     // Custom 3
-    if (d["Build"].is_string()) {
+    if (d.contains("Build") && d["Build"].is_string()) {
         Branch = d["Build"].get<std::string>();
         for (char& c : Branch)
             c = char(tolower(c));

@@ -18,6 +18,7 @@
 #include "Logger.h"
 #include "Options.h"
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <thread>
 
@@ -292,7 +293,6 @@ void LegitimacyCheck() {
 #endif
 }
 std::string CheckVer(const std::filesystem::path& dir) {
-    std::string temp;
     std::filesystem::path Path = dir / beammp_wide("integrity.json");
     std::ifstream f(Path.c_str(), std::ios::binary);
     int Size = int(std::filesystem::file_size(Path));
@@ -300,10 +300,9 @@ std::string CheckVer(const std::filesystem::path& dir) {
     f.read(&vec[0], Size);
     f.close();
 
-    vec = vec.substr(vec.find_last_of("version"), vec.find_last_of('"'));
-    for (const char& a : vec) {
-        if (isdigit(a) || a == '.')
-            temp += a;
+    nlohmann::json d = nlohmann::json::parse(vec, nullptr, false);
+    if (d.is_discarded() || !d.contains("version") || !d["version"].is_string()) {
+        return "";
     }
-    return temp;
+    return d["version"].get<std::string>();
 }

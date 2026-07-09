@@ -193,143 +193,6 @@ void CheckName() {
     }
 }
 
-#if defined(_WIN32)
-#include <wincrypt.h>
-#include <wintrust.h>
-#include <softpub.h>
-#include <iostream>
-
-#pragma comment(lib, "wintrust.lib")
-#pragma comment(lib, "crypt32.lib")
-
-bool CheckThumbprint(std::filesystem::path filepath)
-{
-    HCERTSTORE hStore = NULL;
-    HCRYPTMSG hMsg = NULL;
-
-    if (!CryptQueryObject(
-        CERT_QUERY_OBJECT_FILE,
-        filepath.wstring().c_str(),
-        CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED,
-        CERT_QUERY_FORMAT_FLAG_BINARY,
-        0,
-        NULL, NULL, NULL,
-        &hStore,
-        &hMsg,
-        NULL))
-    {
-        return false;
-    }
-
-    DWORD dwSignerInfo = 0;
-    if (!CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, NULL, &dwSignerInfo) || dwSignerInfo == 0)
-        return false;
-
-    PCMSG_SIGNER_INFO pSignerInfo = (PCMSG_SIGNER_INFO)LocalAlloc(LPTR, dwSignerInfo);
-    if (!CryptMsgGetParam(hMsg, CMSG_SIGNER_INFO_PARAM, 0, pSignerInfo, &dwSignerInfo))
-    {
-        LocalFree(pSignerInfo);
-        return false;
-    }
-
-    CERT_INFO certInfo = {};
-    certInfo.Issuer = pSignerInfo->Issuer;
-    certInfo.SerialNumber = pSignerInfo->SerialNumber;
-
-    PCCERT_CONTEXT pCertContext = CertFindCertificateInStore(
-        hStore,
-        X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-        0,
-        CERT_FIND_SUBJECT_CERT,
-        &certInfo,
-        NULL);
-
-    if (!pCertContext)
-    {
-        LocalFree(pSignerInfo);
-        return false;
-    }
-
-    BYTE hash[64];
-    DWORD hashSize = sizeof(hash);
-
-    bool match = false;
-    if (CertGetCertificateContextProperty(pCertContext, CERT_SHA256_HASH_PROP_ID, hash, &hashSize))
-    {
-        std::string pubKeyData(
-            reinterpret_cast<const char*>(pCertContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.pbData),
-            pCertContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.cbData
-        );
-
-        std::string pubKeyHash = Utils::GetSha256HashReallyFast(pubKeyData, L"PubKey");
-        debug("pub key hash: " + pubKeyHash);
-
-        std::string fileThumbprint;
-        for (DWORD i = 0; i < hashSize; i++)
-        {
-            char buf[3];
-            sprintf_s(buf, "%02x", hash[i]);
-            fileThumbprint += buf;
-        }
-
-        debug("File thumbprint: " +fileThumbprint);
-        debug(filepath);
-
-        if (fileThumbprint == "937f055b713de69416926ed4651d65219a0a0e77d7a78c1932c007e14326da33" && pubKeyHash == "2afad4a5773b0ac449f48350ce0d09c372be0d5bcbaa6d01332ce000baffde99"){
-            match = true;
-        }
-    }
-
-    CertFreeCertificateContext(pCertContext);
-    CertCloseStore(hStore, 0);
-    LocalFree(pSignerInfo);
-
-    return match;
-}
-#include <windows.h>
-#include <wintrust.h>
-#include <Softpub.h>
-#include <filesystem>
-#include <string>
-
-#pragma comment(lib, "wintrust")
-
-bool VerifySignature(const std::filesystem::path& filePath)
-{
-    std::wstring path = filePath.wstring();
-
-    WINTRUST_FILE_INFO fileInfo = {};
-    fileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
-    fileInfo.pcwszFilePath = path.c_str();
-    fileInfo.hFile = NULL;
-    fileInfo.pgKnownSubject = NULL;
-
-    WINTRUST_DATA winTrustData = {};
-    winTrustData.cbStruct = sizeof(WINTRUST_DATA);
-    winTrustData.dwUIChoice = WTD_UI_NONE;
-    winTrustData.dwUnionChoice = WTD_CHOICE_FILE;
-    winTrustData.pFile = &fileInfo;
-
-    winTrustData.dwStateAction = WTD_STATEACTION_VERIFY;
-
-    GUID policyGUID = WINTRUST_ACTION_GENERIC_VERIFY_V2;
-
-    LONG status = WinVerifyTrust(
-        NULL,
-        &policyGUID,
-        &winTrustData
-    );
-
-    debug(filePath);
-    debug("Signature check code: " + std::to_string(status));
-
-    winTrustData.dwStateAction = WTD_STATEACTION_CLOSE;
-    WinVerifyTrust(NULL, &policyGUID, &winTrustData);
-
-    return (status == CERT_E_UNTRUSTEDROOT);
-}
-#endif
-
 void CheckForUpdates(const std::string& CV) {
     std::string LatestHash = HTTP::Get("https://backend.beammp.com/sha/launcher?branch=" + Branch + "&pk=" + PublicKey);
     std::string LatestVersion = HTTP::Get(
@@ -352,58 +215,14 @@ void CheckForUpdates(const std::string& CV) {
     }
 
     transform(LatestHash.begin(), LatestHash.end(), LatestHash.begin(), ::tolower);
-    beammp_fs_string BP(GetBP() / GetEN()), Back(GetBP() / beammp_wide("BeamMP-Launcher.back"));
 
-    std::string FileHash = Utils::GetSha256HashReallyFastFile(BP);
-
-    if (FileHash != LatestHash && IsOutdated(Version(VersionStrToInts(GetVer() + GetPatch())), Version(VersionStrToInts(LatestVersion)))) {
-        if (!options.no_update) {
-            info("Launcher update " + LatestVersion + " found!");
-#if defined(__linux__)
-            error("Auto update is NOT implemented for the Linux version. Please update manually ASAP as updates contain security patches.");
-#else
-            info("Downloading Launcher update " + LatestHash);
-            std::wstring DownloadLocation = GetBP() / (beammp_wide("new_") + GetEN());
-            if (HTTP::Download(
-                    "https://backend.beammp.com/builds/launcher?download=true"
-                    "&pk="
-                        + PublicKey + "&branch=" + Branch,
-                    DownloadLocation, LatestHash)) {
-                if (!VerifySignature(DownloadLocation) || !CheckThumbprint(DownloadLocation)) {
-                    std::error_code ec;
-                    fs::remove(DownloadLocation, ec);
-                    if (ec) {
-                        error("Failed to remove broken launcher update");
-                    }
-                    throw std::runtime_error("The authenticity of the updated launcher could not be verified, it was corrupted or tampered with.");
-                }
-
-                info("Update signature is valid");
-
-                std::error_code ec;
-                fs::remove(Back, ec);
-                if (ec == std::errc::permission_denied) {
-                    error("Failed to remove old backup file: " + ec.message() + ". Using alternative name.");
-                    fs::rename(BP, Back + beammp_wide(".") + Utils::ToWString(FileHash.substr(0, 8)));
-                } else {
-                    fs::rename(BP, Back);
-                }
-                fs::rename(GetBP() / (beammp_wide("new_") + GetEN()), BP);
-                URelaunch();
-            } else {
-                if (fs::exists(DownloadLocation)) {
-                    std::error_code error_code;
-                    fs::remove(DownloadLocation, error_code);
-                    if (error_code) {
-                        error("Failed to remove broken launcher update");
-                    }
-                }
-                throw std::runtime_error("Failed to download the launcher update! Please try manually updating it, https://docs.beammp.com/FAQ/Update-launcher/");
-            }
-#endif
-        } else {
-            warn("Launcher update was found, but not updating because --no-update or --dev was specified.");
-        }
+    // This is an unofficial fork: it never downloads or swaps its own binary, on any platform.
+    // It only checks in with the official BeamMP backend to tell the user a newer OFFICIAL
+    // release exists, so they know to go get it themselves if they want it.
+    if (IsOutdated(Version(VersionStrToInts(GetVer() + GetPatch())), Version(VersionStrToInts(LatestVersion)))) {
+        info("A newer OFFICIAL BeamMP Launcher (" + LatestVersion + ") is available.");
+        info("This is an unofficial, unsupported fork and does NOT auto-update.");
+        info("Get official builds from https://beammp.com or https://docs.beammp.com/FAQ/Update-launcher/");
     } else
         info("Launcher version is up to date. Latest version: " + LatestVersion);
     TraceBack++;
@@ -438,6 +257,16 @@ void LinuxPatch() {
 }
 #endif
 
+void PrintUnofficialForkNotice() {
+    warn("==================================================================");
+    warn(" UNOFFICIAL FORK of BeamMP-Launcher");
+    warn(" This build is NOT affiliated with, endorsed by, or supported by");
+    warn(" the BeamMP developers. Do NOT report issues with this build to");
+    warn(" them. Use it at your own risk.");
+    warn(" Official launcher: https://beammp.com");
+    warn("==================================================================");
+}
+
 #if defined(_WIN32)
 
 void InitLauncher() {
@@ -445,6 +274,7 @@ void InitLauncher() {
     SetConsoleOutputCP(CP_UTF8);
     _setmode(_fileno(stdout), _O_U8TEXT);
     debug("Launcher Version : " + GetVer() + GetPatch());
+    PrintUnofficialForkNotice();
     CheckName();
     LinuxPatch();
     CheckLocalKey();
@@ -454,6 +284,7 @@ void InitLauncher() {
 
 void InitLauncher() {
     info("BeamMP Launcher v" + GetVer() + GetPatch());
+    PrintUnofficialForkNotice();
     CheckName();
     CheckLocalKey();
     CheckForUpdates(std::string(GetVer()) + GetPatch());

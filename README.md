@@ -1,6 +1,16 @@
-# BeamMP-Launcher
+# BeamMP-Launcher (unofficial fork)
 
-The launcher is the way we communitcate to outside the game, it does a few automated actions such as but not limited to: downloading the mod, launching the game, and create a connection to a server.
+> **This is an unofficial, personal fork of [BeamMP-Launcher](https://github.com/BeamMP/BeamMP-Launcher).**
+> It is **not affiliated with, endorsed by, or supported by the BeamMP developers**. It is provided
+> as-is, with no support from the official BeamMP team — do not report issues with this build to them.
+> If you want the officially supported launcher, get it from [beammp.com](https://beammp.com) or
+> [docs.beammp.com](https://docs.beammp.com/game/getting-started/).
+
+The launcher is the way the game communicates with the outside world: it does a few automated actions
+such as but not limited to downloading the mod, launching the game, and creating a connection to a
+server. This fork disables the launcher's self-update mechanism on both Windows and Linux (Linux never
+had one) — it only checks the official BeamMP backend to notify you when a newer *official* release
+exists, and leaves updating up to you.
 
 ## [Getting started](https://docs.beammp.com/game/getting-started/)
 

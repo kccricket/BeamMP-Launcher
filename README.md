@@ -4,6 +4,38 @@ The launcher is the way we communitcate to outside the game, it does a few autom
 
 ## [Getting started](https://docs.beammp.com/game/getting-started/)
 
+## Building
+
+Prerequisites:
+
+- CMake >= 3.21
+- [Ninja](https://ninja-build.org/)
+
+[vcpkg](https://github.com/microsoft/vcpkg) is vendored as a git submodule, so no separate vcpkg install
+or `VCPKG_ROOT` setup is needed — the first `cmake --preset` configure bootstraps it and installs
+dependencies (declared in `vcpkg.json`) automatically.
+
+```sh
+git clone --recursive <this-repo-url>
+cd BeamMP-Launcher
+
+# Linux
+cmake --preset linux
+cmake --build --preset linux
+./build/BeamMP-Launcher
+
+# Windows (run from a Developer Command Prompt/PowerShell so cl.exe is on PATH)
+cmake --preset windows
+cmake --build --preset windows
+.\build\BeamMP-Launcher.exe
+```
+
+Already have a clone without submodules? Run `git submodule update --init` first.
+
+The presets default to a Release build. For a Debug build, override `CMAKE_BUILD_TYPE` on the configure
+command, e.g. `cmake --preset linux -DCMAKE_BUILD_TYPE=Debug` (command-line `-D` flags take precedence
+over a preset's own settings). This also picks up vcpkg's debug library variants automatically.
+
 ## License
 
 BeamMP Launcher, a launcher for the BeamMP mod for BeamNG.drive

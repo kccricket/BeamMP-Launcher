@@ -32,5 +32,13 @@ else() #UNIX
     find_package(OpenSSL REQUIRED)
     target_link_libraries(${PROJECT_NAME} PRIVATE
             ZLIB::ZLIB OpenSSL::SSL OpenSSL::Crypto CURL::libcurl)
+
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Statically link the GCC C++ runtime so the binary doesn't depend on the
+        # build machine's libstdc++/libgcc version at runtime. glibc itself stays
+        # dynamic (DNS/NSS resolution needs it); pair this with building against
+        # an old glibc baseline for maximum portability across distros.
+        target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
+    endif()
 endif(WIN32)
 target_include_directories(${PROJECT_NAME} PRIVATE "include")

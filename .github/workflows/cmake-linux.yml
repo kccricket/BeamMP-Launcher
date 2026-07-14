@@ -4,18 +4,18 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   linux-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
             submodules: 'true'
 
       - name: Get CMake and Ninja
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@591817e96fcad43505fb4eae36172462abb3a42e # v4.3.3
 
       - name: Restore/cache vcpkg's built packages
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
         id: runvcpkg
         with:
             doNotUpdateVcpkg: true
@@ -27,7 +27,7 @@ jobs:
         run: cmake --build --preset linux
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: BeamMP-Launcher
           path: ${{github.workspace}}/build/BeamMP-Launcher

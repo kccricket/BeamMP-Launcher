@@ -40,7 +40,7 @@ bool CheckBytes(int32_t Bytes, int32_t Expected) {
         return false;
     }
     if (Expected != -1 && Bytes != Expected) {
-        debug(std::format("(TCP) Short recv detected, expected {} bytes, got {} bytes", Expected, Bytes));
+        debug("(TCP) Short recv detected, expected " + std::to_string(Expected) + " bytes, got " + std::to_string(Bytes) + " bytes");
         Terminate = true;
         return false;
     }

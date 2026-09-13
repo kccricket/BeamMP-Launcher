@@ -11,6 +11,7 @@ Launcher.cfg
 Resources/
 bin/
 /build/
+/build-ubuntu/
 compile_commands.json
 key
 out/
